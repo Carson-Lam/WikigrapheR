@@ -23,20 +23,42 @@ def scrape_page(url):
 
     try:
         response = requests.get(url, headers=headers, timeout=10)
-        print(f"[{response.status_code}] {url}")  
+        print(f"[{response.status_code}] {url}", flush=True)
         response.raise_for_status()
     except Exception as e:
         print(f"Error fetching {url}: {e}")
         return []
-        
+    
     # soup = BeautifulSoup(response.text, 'lxml')
     soup = BeautifulSoup(response.text, 'html.parser')
 
     # Body and stop point handling
     # stop at either See Also/References
     # Get all body elements
-    stop_element = soup.select_one('h2#See_also, h2#References')
+    # stop_element = soup.select_one('h2#See_also, h2#References')
+    # title = soup.find('h1', id='firstHeading')
+
+    #  DIAGNOSTICS
     title = soup.find('h1', id='firstHeading')
+    print(f"  title found: {title.get_text() if title else 'NONE'}", flush=True)
+
+    total_wiki_links = len(soup.find_all('a', href=re.compile(r'^/wiki/')))
+    print(f"  total /wiki/ links anywhere on page: {total_wiki_links}", flush=True)
+
+    p_count = len(soup.find_all('p'))
+    ul_count = len(soup.find_all('ul'))
+    table_count = len(soup.find_all('table'))
+    print(f"  raw counts -> p:{p_count} ul:{ul_count} table:{table_count}", flush=True)
+
+    stop_element = soup.select_one('h2#See_also, h2#References')
+    print(f"  stop_element found: {stop_element}", flush=True)
+
+    if title:
+        following_count = len(list(title.find_all_next(True)))
+        print(f"  elements after h1: {following_count}", flush=True)
+
+    # DIAGNOSTICS
+
     if not title:
         return []
     body = [title] + list(title.find_all_next(True))
