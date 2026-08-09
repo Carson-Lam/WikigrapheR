@@ -23,11 +23,12 @@ def scrape_page(url):
 
     try:
         response = requests.get(url, headers=headers, timeout=10)
+        print(f"[{response.status_code}] {url}")  
         response.raise_for_status()
     except Exception as e:
         print(f"Error fetching {url}: {e}")
         return []
-    
+        
     # soup = BeautifulSoup(response.text, 'lxml')
     soup = BeautifulSoup(response.text, 'html.parser')
 
