@@ -49,6 +49,9 @@ def scrape_page(url):
     total_wiki_links = len(soup.find_all('a', href=re.compile(r'^/wiki/')))
     print(f"  total /wiki/ links anywhere on page: {total_wiki_links}", flush=True)
 
+    total_dot_links = len(soup.find_all('a', href=re.compile(r'^\./')))
+    print(f"  total ./ (Parsoid-style) links anywhere on page: {total_dot_links}", flush=True)
+
     p_count = len(soup.find_all('p'))
     ul_count = len(soup.find_all('ul'))
     table_count = len(soup.find_all('table'))
@@ -109,15 +112,24 @@ def scrape_page(url):
             href = element.get('href')
             img = element.find('img')
 
-            if (href 
-                and not img 
-                and not NAMESPACE_EXCLUDE_RE.match(href) 
-                and href not in seen_links):
+            rejected_reason = None
+            if not href:
+                rejected_reason = 'no href'
+            elif img:
+                rejected_reason = 'has img'
+            elif NAMESPACE_EXCLUDE_RE.match(href):
+                rejected_reason = 'namespace excluded'
+            elif href in seen_links:
+                rejected_reason = 'duplicate'
+
+            if rejected_reason:
+                print(f"    REJECTED href={href!r} reason={rejected_reason}", flush=True)
+            else:
                 seen_links.add(href)
                 page_name = href.replace('/wiki/', '').replace('./', '')
                 links.append(page_name)
-
-    
+                print(f"    ACCEPTED href={href!r} -> {page_name}", flush=True)
+        
     # Iterate through scraped data
     for element in body:
         # Stop scraping at end of page
@@ -133,8 +145,12 @@ def scrape_page(url):
         if element.name == 'table':
             for row in element.find_all('tr'):
                 # add_unique_links(row.find_all('a', href=re.compile('^/wiki/')))
-                add_unique_links(row.find_all('a', href=WIKI_LINK_RE))
-    
+                add_unique_links(row.find_all('a', href=WIKI_LINK_RE)) How do I open a console? What do you mean voice activation?
+
+
+    # ---- DIAGNOSTIC ---- #
+    print(f"  FINAL links extracted: {len(links)}", flush=True)
+    # ---- DIAGNOSTIC --- #
     return links 
 
 def build_graph_bfs_streaming(start_page, max_pages=50, max_depth=None):
