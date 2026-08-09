@@ -6,163 +6,219 @@ import threading
 scrape_lock = threading.Lock()
 stop_scraping = False
 
-def scrape_page(url):
-    """
-    Scrapes a single Wikipedia page and returns a list of linked pages.
+# def scrape_page(url):
+#     """
+#     Scrapes a single Wikipedia page and returns a list of linked pages.
     
-    Args:
-        url: Full Wikipedia URL (e.g., 'https://en.wikipedia.org/wiki/Fergana_(moth)')
+#     Args:
+#         url: Full Wikipedia URL (e.g., 'https://en.wikipedia.org/wiki/Fergana_(moth)')
     
-    Returns:
-        list: Page names that this page links to (e.g., ['Animal', 'Insect', 'Moth'])
-    """
+#     Returns:
+#         list: Page names that this page links to (e.g., ['Animal', 'Insect', 'Moth'])
+#     """
 
+#     headers = {
+#         'User-Agent': 'WikiGrapher/1.0 (Portfolio Project; lamcn51@example.com)'
+#     }
+
+#     try:
+#         response = requests.get(url, headers=headers, timeout=10)
+#         print(f"[{response.status_code}] {url}", flush=True)
+#         response.raise_for_status()
+#     except Exception as e:
+#         print(f"Error fetching {url}: {e}")
+#         return []
+    
+#     # soup = BeautifulSoup(response.text, 'lxml')
+#     soup = BeautifulSoup(response.text, 'html.parser')
+
+#     # Body and stop point handling
+#     # stop at either See Also/References
+#     # Get all body elements
+
+#     # stop_element = soup.select_one('h2#See_also, h2#References')
+#     # title = soup.find('h1', id='firstHeading')
+
+#     WIKI_LINK_RE = re.compile(r'^(?:/wiki/|\./)')
+#     NAMESPACE_EXCLUDE_RE = re.compile(r'^(?:/wiki/|\./)(Wikipedia:|Talk:|Special:|File:|Help:|Category:)')
+
+#     # ---- DIAGNOSTICS ----
+#     title = soup.find('h1', id='firstHeading')
+#     print(f"  title found: {title.get_text() if title else 'NONE'}", flush=True)
+
+#     total_wiki_links = len(soup.find_all('a', href=re.compile(r'^/wiki/')))
+#     print(f"  total /wiki/ links anywhere on page: {total_wiki_links}", flush=True)
+
+#     total_dot_links = len(soup.find_all('a', href=re.compile(r'^\./')))
+#     print(f"  total ./ (Parsoid-style) links anywhere on page: {total_dot_links}", flush=True)
+
+#     p_count = len(soup.find_all('p'))
+#     ul_count = len(soup.find_all('ul'))
+#     table_count = len(soup.find_all('table'))
+#     print(f"  raw counts -> p:{p_count} ul:{ul_count} table:{table_count}", flush=True)
+
+#     stop_element = soup.select_one('h2#See_also, h2#References')
+#     print(f"  stop_element found: {stop_element}", flush=True)
+
+#     if title:
+#         following_count = len(list(title.find_all_next(True)))
+#         print(f"  elements after h1: {following_count}", flush=True)
+#     # ---- DIAGNOSTICS ----
+
+#     if not title:
+#         return []
+#     body = [title] + list(title.find_all_next(True))
+
+
+#     # ---- DIAGNOSTIC: show raw content of first few real paragraphs ----
+#     shown = 0
+#     for el in body:
+#         if el.name == 'p' and el.get_text(strip=True):
+#             print(f"  SAMPLE PARAGRAPH: {str(el)[:500]}", flush=True)
+#             shown += 1
+#             if shown >= 3:
+#                 break
+#     # ---- END DIAGNOSTIC ----
+
+#     # ---- DIAGNOSTIC ----
+#     stop_index = None
+#     for i, el in enumerate(body):
+#         if el == stop_element:
+#             stop_index = i
+#             break
+#     print(f"  stop_element hit at index {stop_index} of {len(body)} elements", flush=True)
+#     if stop_index is not None:
+#         before = body[:stop_index]
+#         p_before = sum(1 for e in before if e.name == 'p')
+#         ul_before = sum(1 for e in before if e.name == 'ul')
+#         table_before = sum(1 for e in before if e.name == 'table')
+#         links_before = sum(len(e.find_all('a', href=re.compile('^/wiki/'))) 
+#                             for e in before if e.name in ('p','ul','table'))
+#         print(f"  before break -> p:{p_before} ul:{ul_before} table:{table_before}, raw wiki-links in those: {links_before}", flush=True)
+#     # ---- DIAGNOSTIC ----
+    
+#     # Link storage
+#     seen_links = set()
+#     links = []
+    
+#     # Helper to add unique links
+#     # def add_unique_links(elements):
+
+#     #     # nonlocal link_id
+#     #     for element in elements:
+#     #         href = element.get('href')
+#     #         img = element.find('img')
+            
+#     #         # Ensure link exists, has no image, is not internal, and unique
+#     #         if (href 
+#     #             and not img 
+#     #             and not re.match(r'^/wiki/(Wikipedia:|Talk:|Special:|File:|Help:|Category:)', href) 
+#     #             and href not in seen_links):
+#     #             seen_links.add(href)
+#     #             page_name = href.replace('/wiki/', '')
+#     #             links.append(page_name)
+
+#     def add_unique_links(elements):
+#         for element in elements:
+#             href = element.get('href')
+#             img = element.find('img')
+
+#             rejected_reason = None
+#             if not href:
+#                 rejected_reason = 'no href'
+#             elif img:
+#                 rejected_reason = 'has img'
+#             elif NAMESPACE_EXCLUDE_RE.match(href):
+#                 rejected_reason = 'namespace excluded'
+#             elif href in seen_links:
+#                 rejected_reason = 'duplicate'
+
+#             if rejected_reason:
+#                 print(f"    REJECTED href={href!r} reason={rejected_reason}", flush=True)
+#             else:
+#                 seen_links.add(href)
+#                 page_name = href.replace('/wiki/', '').replace('./', '')
+#                 links.append(page_name)
+#                 print(f"    ACCEPTED href={href!r} -> {page_name}", flush=True)
+        
+#     # Iterate through scraped data
+#     for element in body:
+#         # Stop scraping at end of page
+#         if element == stop_element:
+#             break
+        
+#         # Add links from paragraphs, lists, and image captions
+#         if element.name in ['p', 'figcaption', 'ul']:
+#             # add_unique_links(element.find_all('a', href=re.compile('^/wiki/')))
+#             add_unique_links(element.find_all('a', href=WIKI_LINK_RE))
+        
+#         # Add links from tables
+#         if element.name == 'table':
+#             for row in element.find_all('tr'):
+#                 # add_unique_links(row.find_all('a', href=re.compile('^/wiki/')))
+#                 add_unique_links(row.find_all('a', href=WIKI_LINK_RE)) 
+
+
+#     # ---- DIAGNOSTIC ---- #
+#     print(f"  FINAL links extracted: {len(links)}", flush=True)
+#     # ---- DIAGNOSTIC --- #
+#     return links 
+
+def scrape_page(url):
     headers = {
         'User-Agent': 'WikiGrapher/1.0 (Portfolio Project; lamcn51@example.com)'
     }
 
     try:
         response = requests.get(url, headers=headers, timeout=10)
-        print(f"[{response.status_code}] {url}", flush=True)
         response.raise_for_status()
     except Exception as e:
         print(f"Error fetching {url}: {e}")
         return []
-    
-    # soup = BeautifulSoup(response.text, 'lxml')
+
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    # Body and stop point handling
-    # stop at either See Also/References
-    # Get all body elements
-
-    # stop_element = soup.select_one('h2#See_also, h2#References')
-    # title = soup.find('h1', id='firstHeading')
-
-    WIKI_LINK_RE = re.compile(r'^(?:/wiki/|\./)')
-    NAMESPACE_EXCLUDE_RE = re.compile(r'^(?:/wiki/|\./)(Wikipedia:|Talk:|Special:|File:|Help:|Category:)')
-
-    # ---- DIAGNOSTICS ----
     title = soup.find('h1', id='firstHeading')
-    print(f"  title found: {title.get_text() if title else 'NONE'}", flush=True)
-
-    total_wiki_links = len(soup.find_all('a', href=re.compile(r'^/wiki/')))
-    print(f"  total /wiki/ links anywhere on page: {total_wiki_links}", flush=True)
-
-    total_dot_links = len(soup.find_all('a', href=re.compile(r'^\./')))
-    print(f"  total ./ (Parsoid-style) links anywhere on page: {total_dot_links}", flush=True)
-
-    p_count = len(soup.find_all('p'))
-    ul_count = len(soup.find_all('ul'))
-    table_count = len(soup.find_all('table'))
-    print(f"  raw counts -> p:{p_count} ul:{ul_count} table:{table_count}", flush=True)
-
-    stop_element = soup.select_one('h2#See_also, h2#References')
-    print(f"  stop_element found: {stop_element}", flush=True)
-
-    if title:
-        following_count = len(list(title.find_all_next(True)))
-        print(f"  elements after h1: {following_count}", flush=True)
-    # ---- DIAGNOSTICS ----
-
     if not title:
         return []
+    stop_element = soup.select_one('h2#See_also, h2#References')
     body = [title] + list(title.find_all_next(True))
 
-
-    # ---- DIAGNOSTIC: show raw content of first few real paragraphs ----
-    shown = 0
-    for el in body:
-        if el.name == 'p' and el.get_text(strip=True):
-            print(f"  SAMPLE PARAGRAPH: {str(el)[:500]}", flush=True)
-            shown += 1
-            if shown >= 3:
-                break
-    # ---- END DIAGNOSTIC ----
-
-    # ---- DIAGNOSTIC ----
-    stop_index = None
-    for i, el in enumerate(body):
-        if el == stop_element:
-            stop_index = i
-            break
-    print(f"  stop_element hit at index {stop_index} of {len(body)} elements", flush=True)
-    if stop_index is not None:
-        before = body[:stop_index]
-        p_before = sum(1 for e in before if e.name == 'p')
-        ul_before = sum(1 for e in before if e.name == 'ul')
-        table_before = sum(1 for e in before if e.name == 'table')
-        links_before = sum(len(e.find_all('a', href=re.compile('^/wiki/'))) 
-                            for e in before if e.name in ('p','ul','table'))
-        print(f"  before break -> p:{p_before} ul:{ul_before} table:{table_before}, raw wiki-links in those: {links_before}", flush=True)
-    # ---- DIAGNOSTIC ----
-    
-    # Link storage
     seen_links = set()
     links = []
-    
-    # Helper to add unique links
-    # def add_unique_links(elements):
 
-    #     # nonlocal link_id
-    #     for element in elements:
-    #         href = element.get('href')
-    #         img = element.find('img')
-            
-    #         # Ensure link exists, has no image, is not internal, and unique
-    #         if (href 
-    #             and not img 
-    #             and not re.match(r'^/wiki/(Wikipedia:|Talk:|Special:|File:|Help:|Category:)', href) 
-    #             and href not in seen_links):
-    #             seen_links.add(href)
-    #             page_name = href.replace('/wiki/', '')
-    #             links.append(page_name)
+    WIKI_PATH_RE = re.compile(r'^(?:/wiki/|\./|https?://en\.wikipedia\.org/wiki/)(.+)$')
+    NAMESPACE_EXCLUDE_RE = re.compile(r'^(Wikipedia:|Talk:|Special:|File:|Help:|Category:)')
 
     def add_unique_links(elements):
         for element in elements:
             href = element.get('href')
             img = element.find('img')
+            if not href or img:
+                continue
 
-            rejected_reason = None
-            if not href:
-                rejected_reason = 'no href'
-            elif img:
-                rejected_reason = 'has img'
-            elif NAMESPACE_EXCLUDE_RE.match(href):
-                rejected_reason = 'namespace excluded'
-            elif href in seen_links:
-                rejected_reason = 'duplicate'
+            match = WIKI_PATH_RE.match(href)
+            if not match:
+                continue
 
-            if rejected_reason:
-                print(f"    REJECTED href={href!r} reason={rejected_reason}", flush=True)
-            else:
-                seen_links.add(href)
-                page_name = href.replace('/wiki/', '').replace('./', '')
-                links.append(page_name)
-                print(f"    ACCEPTED href={href!r} -> {page_name}", flush=True)
-        
-    # Iterate through scraped data
+            page_name = match.group(1)
+            if NAMESPACE_EXCLUDE_RE.match(page_name) or page_name in seen_links:
+                continue
+
+            seen_links.add(page_name)
+            links.append(page_name)
+
     for element in body:
-        # Stop scraping at end of page
         if element == stop_element:
             break
-        
-        # Add links from paragraphs, lists, and image captions
         if element.name in ['p', 'figcaption', 'ul']:
-            # add_unique_links(element.find_all('a', href=re.compile('^/wiki/')))
-            add_unique_links(element.find_all('a', href=WIKI_LINK_RE))
-        
-        # Add links from tables
+            add_unique_links(element.find_all('a'))
         if element.name == 'table':
             for row in element.find_all('tr'):
-                # add_unique_links(row.find_all('a', href=re.compile('^/wiki/')))
-                add_unique_links(row.find_all('a', href=WIKI_LINK_RE)) 
+                add_unique_links(row.find_all('a'))
 
+    return links
 
-    # ---- DIAGNOSTIC ---- #
-    print(f"  FINAL links extracted: {len(links)}", flush=True)
-    # ---- DIAGNOSTIC --- #
-    return links 
 
 def build_graph_bfs_streaming(start_page, max_pages=50, max_depth=None):
     """
