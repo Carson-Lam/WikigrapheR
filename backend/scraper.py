@@ -69,6 +69,17 @@ def scrape_page(url):
         return []
     body = [title] + list(title.find_all_next(True))
 
+
+    # ---- DIAGNOSTIC: show raw content of first few real paragraphs ----
+    shown = 0
+    for el in body:
+        if el.name == 'p' and el.get_text(strip=True):
+            print(f"  SAMPLE PARAGRAPH: {str(el)[:500]}", flush=True)
+            shown += 1
+            if shown >= 3:
+                break
+    # ---- END DIAGNOSTIC ----
+
     # ---- DIAGNOSTIC ----
     stop_index = None
     for i, el in enumerate(body):
