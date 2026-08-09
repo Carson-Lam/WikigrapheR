@@ -56,12 +56,28 @@ def scrape_page(url):
     if title:
         following_count = len(list(title.find_all_next(True)))
         print(f"  elements after h1: {following_count}", flush=True)
-
     # DIAGNOSTICS
 
     if not title:
         return []
     body = [title] + list(title.find_all_next(True))
+
+    # ---- DIAGNOSTIC ----
+    stop_index = None
+    for i, el in enumerate(body):
+        if el == stop_element:
+            stop_index = i
+            break
+    print(f"  stop_element hit at index {stop_index} of {len(body)} elements", flush=True)
+    if stop_index is not None:
+        before = body[:stop_index]
+        p_before = sum(1 for e in before if e.name == 'p')
+        ul_before = sum(1 for e in before if e.name == 'ul')
+        table_before = sum(1 for e in before if e.name == 'table')
+        links_before = sum(len(e.find_all('a', href=re.compile('^/wiki/'))) 
+                            for e in before if e.name in ('p','ul','table'))
+        print(f"  before break -> p:{p_before} ul:{ul_before} table:{table_before}, raw wiki-links in those: {links_before}", flush=True)
+    # ---- DIAGNOSTIC ----
     
     # Link storage
     seen_links = set()
