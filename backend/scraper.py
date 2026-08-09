@@ -35,10 +35,14 @@ def scrape_page(url):
     # Body and stop point handling
     # stop at either See Also/References
     # Get all body elements
+
     # stop_element = soup.select_one('h2#See_also, h2#References')
     # title = soup.find('h1', id='firstHeading')
 
-    #  DIAGNOSTICS
+    WIKI_LINK_RE = re.compile(r'^(?:/wiki/|\./)')
+    NAMESPACE_EXCLUDE_RE = re.compile(r'^(?:/wiki/|\./)(Wikipedia:|Talk:|Special:|File:|Help:|Category:)')
+
+    # ---- DIAGNOSTICS ----
     title = soup.find('h1', id='firstHeading')
     print(f"  title found: {title.get_text() if title else 'NONE'}", flush=True)
 
@@ -56,7 +60,7 @@ def scrape_page(url):
     if title:
         following_count = len(list(title.find_all_next(True)))
         print(f"  elements after h1: {following_count}", flush=True)
-    # DIAGNOSTICS
+    # ---- DIAGNOSTICS ----
 
     if not title:
         return []
@@ -84,21 +88,35 @@ def scrape_page(url):
     links = []
     
     # Helper to add unique links
-    def add_unique_links(elements):
+    # def add_unique_links(elements):
 
-        # nonlocal link_id
+    #     # nonlocal link_id
+    #     for element in elements:
+    #         href = element.get('href')
+    #         img = element.find('img')
+            
+    #         # Ensure link exists, has no image, is not internal, and unique
+    #         if (href 
+    #             and not img 
+    #             and not re.match(r'^/wiki/(Wikipedia:|Talk:|Special:|File:|Help:|Category:)', href) 
+    #             and href not in seen_links):
+    #             seen_links.add(href)
+    #             page_name = href.replace('/wiki/', '')
+    #             links.append(page_name)
+
+    def add_unique_links(elements):
         for element in elements:
             href = element.get('href')
             img = element.find('img')
-            
-            # Ensure link exists, has no image, is not internal, and unique
+
             if (href 
                 and not img 
-                and not re.match(r'^/wiki/(Wikipedia:|Talk:|Special:|File:|Help:|Category:)', href) 
+                and not NAMESPACE_EXCLUDE_RE.match(href) 
                 and href not in seen_links):
                 seen_links.add(href)
-                page_name = href.replace('/wiki/', '')
+                page_name = href.replace('/wiki/', '').replace('./', '')
                 links.append(page_name)
+
     
     # Iterate through scraped data
     for element in body:
@@ -108,12 +126,14 @@ def scrape_page(url):
         
         # Add links from paragraphs, lists, and image captions
         if element.name in ['p', 'figcaption', 'ul']:
-            add_unique_links(element.find_all('a', href=re.compile('^/wiki/')))
+            # add_unique_links(element.find_all('a', href=re.compile('^/wiki/')))
+            add_unique_links(element.find_all('a', href=WIKI_LINK_RE))
         
         # Add links from tables
         if element.name == 'table':
             for row in element.find_all('tr'):
-                add_unique_links(row.find_all('a', href=re.compile('^/wiki/')))
+                # add_unique_links(row.find_all('a', href=re.compile('^/wiki/')))
+                add_unique_links(row.find_all('a', href=WIKI_LINK_RE))
     
     return links 
 
