@@ -145,7 +145,7 @@ def scrape_page(url):
         if element.name == 'table':
             for row in element.find_all('tr'):
                 # add_unique_links(row.find_all('a', href=re.compile('^/wiki/')))
-                add_unique_links(row.find_all('a', href=WIKI_LINK_RE)) How do I open a console? What do you mean voice activation?
+                add_unique_links(row.find_all('a', href=WIKI_LINK_RE)) 
 
 
     # ---- DIAGNOSTIC ---- #
